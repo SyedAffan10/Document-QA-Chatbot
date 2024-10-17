@@ -88,7 +88,7 @@ if prompt := st.chat_input("Ask a question"):
 
     extracted_content = []
     for ans in answer['reader']['answers']:
-        if ans.score > 0.5 and ans.data and ans.document:
+        if ans.score > 0.6 and ans.data and ans.document:
             extracted_content.append(ans.document.content)
 
     if extracted_content:
