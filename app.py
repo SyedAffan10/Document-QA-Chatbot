@@ -20,10 +20,9 @@ def load_documents(files):
             st.warning(f"Error loading {file}: {e}")
     return combined_data
 
-files = glob.glob("/GEN_AI/*.docx")
+files = glob.glob("./GEN_AI/*.docx")
 data_contents = load_documents(files)
 
-# Adjusted chunk size and overlap
 text_splitter = RecursiveCharacterTextSplitter(
     chunk_size=300,
     chunk_overlap=50
@@ -33,15 +32,13 @@ texts = []
 for content in data_contents:
     texts.extend(text_splitter.create_documents([content]))
 
-# Experiment with a more QA-focused embedding model
 model_name = "sentence-transformers/msmarco-distilbert-base-tas-b"
 embedding_model = HuggingFaceEmbeddings(model_name=model_name)
 
 vector_store = FAISS.from_texts([doc.page_content for doc in texts], embedding_model)
 
-# Increase k for better document retrieval
 def retrieve_documents(query):
-    docs = vector_store.similarity_search(query, k=7)
+    docs = vector_store.similarity_search(query, k=5)
     return docs
 
 def answer_question(query):
@@ -49,8 +46,7 @@ def answer_question(query):
     if not docs:
         return "I couldn't find relevant information. Could you rephrase your question?"
 
-    # Increase max_new_tokens for more detailed responses
-    llm = pipeline("text2text-generation", model="google/flan-t5-large", max_new_tokens=300)
+    llm = pipeline("text2text-generation", model="google/flan-t5-base",  max_new_tokens=300)
 
     retriever_qa = RetrievalQA.from_chain_type(
         llm=HuggingFacePipeline(pipeline=llm),
@@ -62,8 +58,8 @@ def answer_question(query):
     answer = retriever_qa.run(query)
     return answer
 
-st.set_page_config(page_title="GEN AI product knowledge", page_icon="🤖")
-st.title("GEN AI product knowledge")
+st.set_page_config(page_title="Document QA Chatbot", page_icon="🤖")
+st.title("Document QA Chatbot")
 
 if "messages" not in st.session_state:
     st.session_state.messages = [
