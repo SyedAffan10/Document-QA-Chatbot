@@ -59,7 +59,7 @@ def answer_question(query):
     return answer
 
 st.set_page_config(page_title="GEN AI", page_icon="🤖")
-st.title("Document QA Chatbot")
+st.title("GEN AI")
 
 if "messages" not in st.session_state:
     st.session_state.messages = [
