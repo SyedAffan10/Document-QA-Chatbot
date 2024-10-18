@@ -58,7 +58,7 @@ def answer_question(query):
     answer = retriever_qa.run(query)
     return answer
 
-st.set_page_config(page_title="Document QA Chatbot", page_icon="🤖")
+st.set_page_config(page_title="GEN AI", page_icon="🤖")
 st.title("Document QA Chatbot")
 
 if "messages" not in st.session_state:
