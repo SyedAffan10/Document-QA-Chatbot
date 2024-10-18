@@ -46,7 +46,7 @@ def answer_question(query):
     if not docs:
         return "I couldn't find relevant information. Could you rephrase your question?"
 
-    llm = pipeline("text2text-generation", model="google/flan-t5-large",  max_new_tokens=250)
+    llm = pipeline("text2text-generation", model="google/flan-t5-large")
 
     retriever_qa = RetrievalQA.from_chain_type(
         llm=HuggingFacePipeline(pipeline=llm),
