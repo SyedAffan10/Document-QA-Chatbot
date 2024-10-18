@@ -24,15 +24,15 @@ files = glob.glob("./GEN_AI/*.docx")
 data_contents = load_documents(files)
 
 text_splitter = RecursiveCharacterTextSplitter(
-    chunk_size=350,
-    chunk_overlap=50
+    chunk_size=450,
+    chunk_overlap=100
 )
 
 texts = []
 for content in data_contents:
     texts.extend(text_splitter.create_documents([content]))
 
-model_name = "sentence-transformers/all-distilroberta-v1"
+model_name = "sentence-transformers/msmarco-distilbert-base-tas-b"
 embedding_model = HuggingFaceEmbeddings(model_name=model_name)
 
 vector_store = FAISS.from_texts([doc.page_content for doc in texts], embedding_model)
