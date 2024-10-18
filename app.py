@@ -1,102 +1,82 @@
 import streamlit as st
 from langchain_community.document_loaders import Docx2txtLoader
-from langchain_text_splitters import RecursiveCharacterTextSplitter
-from haystack import Document, Pipeline
-from haystack.document_stores.in_memory import InMemoryDocumentStore
-from haystack.components.retrievers.in_memory import InMemoryEmbeddingRetriever
-from haystack.components.readers import ExtractiveReader
-from haystack.components.embedders import SentenceTransformersDocumentEmbedder, SentenceTransformersTextEmbedder
-from haystack.components.writers import DocumentWriter
+from langchain_community.embeddings import HuggingFaceEmbeddings
+from langchain_community.vectorstores import FAISS
+from langchain.text_splitter import RecursiveCharacterTextSplitter
+from langchain.chains import RetrievalQA
+from langchain_community.llms import HuggingFacePipeline
+from transformers import pipeline
 import glob
-from uuid import uuid4
 
-# Function to load documents
 def load_documents(files):
     combined_data = []
     for file in files:
         try:
             loader = Docx2txtLoader(file)
             data = loader.load()
-            combined_data.append(data[0].page_content)
+            for doc in data:
+                combined_data.append(doc.page_content)
         except Exception as e:
             st.warning(f"Error loading {file}: {e}")
-    return " ".join(combined_data)
+    return combined_data
 
-# Load document files
 files = glob.glob("./GEN_AI/*.docx")
-data_content = load_documents(files)
+data_contents = load_documents(files)
 
-# Split documents into chunks
 text_splitter = RecursiveCharacterTextSplitter(
     chunk_size=350,
-    chunk_overlap=50,
-    length_function=len,
-    is_separator_regex=False,
+    chunk_overlap=50
 )
 
-texts = text_splitter.create_documents([data_content])
+texts = []
+for content in data_contents:
+    texts.extend(text_splitter.create_documents([content]))
 
-# Model for embedding
-model = "sentence-transformers/multi-qa-mpnet-base-dot-v1"
+model_name = "sentence-transformers/multi-qa-mpnet-base-dot-v1"
+embedding_model = HuggingFaceEmbeddings(model_name=model_name)
 
-# Create in-memory document store
-document_store = InMemoryDocumentStore()
+vector_store = FAISS.from_texts([doc.page_content for doc in texts], embedding_model)
 
-# Embedding pipeline
-indexing_pipeline = Pipeline()
-indexing_pipeline.add_component(instance=SentenceTransformersDocumentEmbedder(model=model), name="embedder")
-indexing_pipeline.add_component(instance=DocumentWriter(document_store=document_store), name="writer")
-indexing_pipeline.connect("embedder.documents", "writer.documents")
+def retrieve_documents(query):
+    docs = vector_store.similarity_search(query, k=5)
+    return docs
 
-textss = [Document(content=doc.page_content, id=str(uuid4()), meta=doc.metadata) for doc in texts]
-indexing_pipeline.run({"documents": textss})
+def answer_question(query):
+    docs = retrieve_documents(query)
+    if not docs:
+        return "I couldn't find relevant information. Could you rephrase your question?"
 
-retriever = InMemoryEmbeddingRetriever(document_store=document_store)
-reader = ExtractiveReader(model="deepset/roberta-base-squad2")
-reader.warm_up()
+    llm = pipeline("text2text-generation", model="google/flan-t5-base",  max_new_tokens=150)
 
-# Create QA pipeline
-extractive_qa_pipeline = Pipeline()
-extractive_qa_pipeline.add_component(instance=SentenceTransformersTextEmbedder(model=model), name="embedder")
-extractive_qa_pipeline.add_component(instance=retriever, name="retriever")
-extractive_qa_pipeline.add_component(instance=reader, name="reader")
-extractive_qa_pipeline.connect("embedder.embedding", "retriever.query_embedding")
-extractive_qa_pipeline.connect("retriever.documents", "reader.documents")
+    retriever_qa = RetrievalQA.from_chain_type(
+        llm=HuggingFacePipeline(pipeline=llm),
+        chain_type="stuff",
+        retriever=vector_store.as_retriever(),
+        input_key="query"
+    )
+
+    answer = retriever_qa.run(query)
+    return answer
 
 st.set_page_config(page_title="Document QA Chatbot", page_icon="🤖")
 st.title("Document QA Chatbot")
 
 if "messages" not in st.session_state:
     st.session_state.messages = [
-        {"role": "assistant", "content": "How can I help you today?"}  # Initial message
+        {"role": "assistant", "content": "How can I help you today?"}
     ]
 
 for message in st.session_state.messages:
     with st.chat_message(message["role"]):
         st.markdown(message["content"])
 
-# Handle user input
 if prompt := st.chat_input("Ask a question"):
     st.session_state.messages.append({"role": "user", "content": prompt})
     with st.chat_message("user"):
         st.markdown(prompt)
 
-    # Run the QA pipeline
-    answer = extractive_qa_pipeline.run(
-        data={"embedder": {"text": prompt}, "retriever": {"top_k": 5}, "reader": {"query": prompt, "top_k": 1}}
-    )
-
-    extracted_content = []
-    for ans in answer['reader']['answers']:
-        if ans.score > 0.6 and ans.data and ans.document:
-            extracted_content.append(ans.document.content)
-
-    if extracted_content:
-        bot_answer = extracted_content[0]
-    else:
-        bot_answer = "I couldn't find relevant information, could you please rephrase your question?"
+    bot_answer = answer_question(prompt)
 
     st.session_state.messages.append({"role": "assistant", "content": bot_answer})
-
     with st.chat_message("assistant"):
         st.markdown(bot_answer)
