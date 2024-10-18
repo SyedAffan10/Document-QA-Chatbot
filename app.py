@@ -32,7 +32,7 @@ texts = []
 for content in data_contents:
     texts.extend(text_splitter.create_documents([content]))
 
-model_name = "sentence-transformers/msmarco-distilbert-base-tas-b"
+model_name = "sentence-transformers/all-mpnet-base-v2"
 embedding_model = HuggingFaceEmbeddings(model_name=model_name)
 
 vector_store = FAISS.from_texts([doc.page_content for doc in texts], embedding_model)
