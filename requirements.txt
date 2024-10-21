@@ -48,6 +48,7 @@ jsonschema-specifications==2024.10.1
 langchain==0.3.3
 langchain-community==0.3.2
 langchain-core==0.3.12
+langchain-huggingface==0.1.0
 langchain-text-splitters==0.3.0
 langsmith==0.1.135
 lazy-imports==0.3.1
@@ -123,5 +124,6 @@ tzdata==2024.2
 url-normalize==1.4.3
 urllib3==2.2.3
 watchdog==5.0.3
+wheel==0.44.0
 xxhash==3.5.0
 yarl==1.15.4
