@@ -7,6 +7,7 @@ from langchain.chains import RetrievalQA
 from langchain_community.llms import HuggingFacePipeline
 from transformers import pipeline
 import glob
+import time
 
 def load_documents(files):
     combined_data = []
@@ -46,7 +47,7 @@ def answer_question(query):
     if not docs:
         return "I couldn't find relevant information. Could you rephrase your question?"
 
-    llm = pipeline("text2text-generation", model="google/flan-t5-base",  max_new_tokens=300)
+    llm = pipeline("text2text-generation", model="google/flan-t5-base", max_new_tokens=300)
 
     retriever_qa = RetrievalQA.from_chain_type(
         llm=HuggingFacePipeline(pipeline=llm),
@@ -58,25 +59,47 @@ def answer_question(query):
     answer = retriever_qa.run(query)
     return answer
 
-st.set_page_config(page_title="Document QA Chatbot", page_icon="🤖")
-st.title("Document QA Chatbot")
+st.set_page_config(page_title="GEN AI Product", page_icon="🤖")
+
+st.markdown("<h1 style='text-align: center;'>GEN AI Product</h1>", unsafe_allow_html=True)
 
 if "messages" not in st.session_state:
     st.session_state.messages = [
-        {"role": "assistant", "content": "How can I help you today?"}
+        {"role": "assistant", "content": "How can I help you today? 😊"}
     ]
+    st.session_state.input_disabled = False
 
 for message in st.session_state.messages:
-    with st.chat_message(message["role"]):
-        st.markdown(message["content"])
+    if message["role"] == "assistant":
+        with st.chat_message("assistant"):
+            st.markdown(message["content"])
+    else:
+        with st.chat_message("user"):
+            cols = st.columns([3, 1])
+            with cols[1]:
+                st.markdown(message["content"])
 
-if prompt := st.chat_input("Ask a question"):
-    st.session_state.messages.append({"role": "user", "content": prompt})
-    with st.chat_message("user"):
-        st.markdown(prompt)
+if not st.session_state.input_disabled:
+    prompt = st.chat_input("Ask a question 🤔")
+    if prompt:
+        st.session_state.messages.append({"role": "user", "content": prompt})
 
-    bot_answer = answer_question(prompt)
+        cols = st.columns([3, 1])
+        with cols[1]:
+            with st.chat_message("user"):
+                st.markdown(prompt)
 
-    st.session_state.messages.append({"role": "assistant", "content": bot_answer})
-    with st.chat_message("assistant"):
-        st.markdown(bot_answer)
+        st.session_state.input_disabled = True
+
+        with st.spinner("Thinking... 💭"):
+            bot_answer = answer_question(prompt)
+            time.sleep(1)
+
+        st.session_state.messages.append({"role": "assistant", "content": bot_answer})
+
+        with st.chat_message("assistant"):
+            st.markdown(bot_answer)
+
+        st.session_state.input_disabled = False
+else:
+    st.info("Please wait for the assistant to respond before asking another question.")
