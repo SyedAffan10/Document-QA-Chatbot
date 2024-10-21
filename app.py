@@ -1,6 +1,6 @@
 import streamlit as st
 from langchain_community.document_loaders import Docx2txtLoader
-from langchain_community.embeddings import HuggingFaceEmbeddings
+from langchain_huggingface import HuggingFaceEmbeddings  # Updated import
 from langchain_community.vectorstores import FAISS
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain.chains import RetrievalQA
@@ -75,19 +75,14 @@ for message in st.session_state.messages:
             st.markdown(message["content"])
     else:
         with st.chat_message("user"):
-            cols = st.columns([3, 1])
-            with cols[1]:
-                st.markdown(message["content"])
+            st.markdown(f"<div style='text-align: right;'>{message['content']}</div>", unsafe_allow_html=True)
 
 if not st.session_state.input_disabled:
     prompt = st.chat_input("Ask a question 🤔")
     if prompt:
         st.session_state.messages.append({"role": "user", "content": prompt})
 
-        cols = st.columns([3, 1])
-        with cols[1]:
-            with st.chat_message("user"):
-                st.markdown(prompt)
+        st.markdown(f"<div style='text-align: right;'>{prompt}</div>", unsafe_allow_html=True)
 
         st.session_state.input_disabled = True
 
