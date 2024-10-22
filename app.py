@@ -1,16 +1,16 @@
 import streamlit as st
 from langchain_community.document_loaders import Docx2txtLoader
-from langchain_huggingface import HuggingFaceEmbeddings  # Updated import
+from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_community.vectorstores import FAISS
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain.chains import RetrievalQA
 from langchain_community.llms import HuggingFacePipeline
 from transformers import pipeline
 import glob
-import time
 
-def load_documents(files):
+def load_and_process_docs(folder_path):
     combined_data = []
+    files = glob.glob(f"{folder_path}/*.docx")
     for file in files:
         try:
             loader = Docx2txtLoader(file)
@@ -19,10 +19,11 @@ def load_documents(files):
                 combined_data.append(doc.page_content)
         except Exception as e:
             st.warning(f"Error loading {file}: {e}")
+
     return combined_data
 
-files = glob.glob("./GEN_AI/*.docx")
-data_contents = load_documents(files)
+folder_path = "./GEN_AI"
+data_contents = load_and_process_docs(folder_path)
 
 text_splitter = RecursiveCharacterTextSplitter(
     chunk_size=300,
@@ -33,13 +34,13 @@ texts = []
 for content in data_contents:
     texts.extend(text_splitter.create_documents([content]))
 
-model_name = "sentence-transformers/msmarco-distilbert-base-tas-b"
+model_name = "hkunlp/instructor-large"
 embedding_model = HuggingFaceEmbeddings(model_name=model_name)
 
 vector_store = FAISS.from_texts([doc.page_content for doc in texts], embedding_model)
 
 def retrieve_documents(query):
-    docs = vector_store.similarity_search(query, k=5)
+    docs = vector_store.similarity_search(query, k=2)
     return docs
 
 def answer_question(query):
@@ -47,7 +48,7 @@ def answer_question(query):
     if not docs:
         return "I couldn't find relevant information. Could you rephrase your question?"
 
-    llm = pipeline("text2text-generation", model="google/flan-t5-base", max_new_tokens=300)
+    llm = pipeline("text2text-generation", model="google/flan-t5-large", max_new_tokens=300)
 
     retriever_qa = RetrievalQA.from_chain_type(
         llm=HuggingFacePipeline(pipeline=llm),
@@ -77,24 +78,20 @@ for message in st.session_state.messages:
         with st.chat_message("user"):
             st.markdown(f"<div style='text-align: right;'>{message['content']}</div>", unsafe_allow_html=True)
 
-if not st.session_state.input_disabled:
-    prompt = st.chat_input("Ask a question 🤔")
-    if prompt:
-        st.session_state.messages.append({"role": "user", "content": prompt})
+prompt = st.chat_input("Ask a question 🤔", disabled=st.session_state.input_disabled)
 
-        st.markdown(f"<div style='text-align: right;'>{prompt}</div>", unsafe_allow_html=True)
+if prompt:
+    st.session_state.messages.append({"role": "user", "content": prompt})
+    st.markdown(f"<div style='text-align: right;'>{prompt}</div>", unsafe_allow_html=True)
 
-        st.session_state.input_disabled = True
+    st.session_state.input_disabled = True
 
-        with st.spinner("Thinking... 💭"):
-            bot_answer = answer_question(prompt)
-            time.sleep(1)
+    with st.spinner("Thinking... 💭"):
+        bot_answer = answer_question(prompt)
 
-        st.session_state.messages.append({"role": "assistant", "content": bot_answer})
+    st.session_state.messages.append({"role": "assistant", "content": bot_answer})
 
-        with st.chat_message("assistant"):
-            st.markdown(bot_answer)
+    with st.chat_message("assistant"):
+        st.markdown(bot_answer)
 
-        st.session_state.input_disabled = False
-else:
-    st.info("Please wait for the assistant to respond before asking another question.")
+    st.session_state.input_disabled = False
