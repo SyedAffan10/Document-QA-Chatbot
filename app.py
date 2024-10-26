@@ -72,11 +72,9 @@ if "messages" not in st.session_state:
 
 for message in st.session_state.messages:
     if message["role"] == "assistant":
-        with st.chat_message("assistant"):
-            st.markdown(message["content"])
+        st.markdown(f"<div style='text-align: left;'>{message['content']}</div>", unsafe_allow_html=True)
     else:
-        with st.chat_message("user"):
-            st.markdown(f"<div style='text-align: right;'>{message['content']}</div>", unsafe_allow_html=True)
+        st.markdown(f"<div style='text-align: right;'>{message['content']}</div>", unsafe_allow_html=True)
 
 prompt = st.chat_input("Ask a question 🤔", disabled=st.session_state.input_disabled)
 
@@ -90,8 +88,6 @@ if prompt:
         bot_answer = answer_question(prompt)
 
     st.session_state.messages.append({"role": "assistant", "content": bot_answer})
-
-    with st.chat_message("assistant"):
-        st.markdown(bot_answer)
+    st.markdown(f"<div style='text-align: left;'>{bot_answer}</div>", unsafe_allow_html=True)
 
     st.session_state.input_disabled = False
